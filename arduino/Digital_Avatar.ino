@@ -12,6 +12,10 @@
 #include <Fonts/FreeSans9pt7b.h>
 
 
+// Define pins
+int chargePin = D1;
+int battPin = A0;
+
 GxIO_Class io(SPI, SS, 0, 2);
 GxEPD_Class display(io);
 
@@ -269,32 +273,6 @@ static const uint8_t PROGMEM southpark[] = {
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0xff, 0xff, 0xff, 0xff, 0xff,
    0x01, 0x00, 0x00, 0x00 };
 
-void drawTest() {
-  display.fillScreen(GxEPD_WHITE);
-  display.setFont(&FreeMonoBold9pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.setCursor(0, 0);
-  display.println();
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold18pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold24pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.update();
-}
 
 void drawStatusWindow(const uint8_t *avatar, String ticket) {
   display.fillScreen(GxEPD_WHITE);
@@ -329,16 +307,48 @@ void drawStatusWindow(const uint8_t *avatar, String ticket) {
   display.update();
 }
 
+bool charging() {
+  if (digitalRead(chargePin) == HIGH) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
 void setup() {
+  // Pin modes
+  pinMode(chargePin, INPUT);
+  pinMode(battPin, INPUT);
+
+  // Start serial
   Serial.begin(115200);
   Serial.println();
   Serial.println("setup");
+
+  // Read voltage
+  
+  unsigned int raw = 0;
+  float volt = 0.0;
+  raw = analogRead(A0);
+  volt = raw / 1023.0;
+  volt = volt * 4.2;
+  String v = String(volt);
+  Serial.println(v);
+  
+
   display.init();
   Serial.println("setup done");
-  drawTest();
 }
 
 void loop() {
+  // Are we charging
+  if (charging() == true) {
+    Serial.println("Charging");
+  } else {
+    Serial.println("Not charging");
+  }
+  
   String grumpyTicket = "DEVOPS-123";
   drawStatusWindow(grumpy, grumpyTicket);
   delay(5000);
