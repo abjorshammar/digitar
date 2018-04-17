@@ -584,7 +584,7 @@ void setup() {
   Serial.print("random2=");
   Serial.print(randNumber);
   ssid = String("Digitar") + String(randNumber);
-  long password = random(1000000, 9999999);
+  long password = random(10000000, 99999999);
   pw = String(password);
   qr_code = String("WIFI:S:") + ssid + String(";T:WPA2;P:") + pw + String(";;");
 
