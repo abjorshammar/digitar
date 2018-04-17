@@ -1,0 +1,19 @@
+service: digitar-backend
+
+provider:
+  name: aws
+  runtime: python3.6
+  stage: prod
+  region: eu-west-1
+  apiKeys:
+      - sucharandomapikeythisis
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: digitar/hello
+          method: get
+          cors: true
+          private: true
