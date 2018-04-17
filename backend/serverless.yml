@@ -6,7 +6,7 @@ provider:
   stage: prod
   region: eu-west-1
   apiKeys:
-      - sucharandomapikeythisis
+      - iotkey
 
 functions:
   hello:
@@ -17,3 +17,11 @@ functions:
           method: get
           cors: true
           private: true
+  hello-pub:
+    handler: handler.hello
+    events:
+      - http:
+          path: digitar/hellopub
+          method: get
+          cors: true
+          private: false
