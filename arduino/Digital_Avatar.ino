@@ -361,12 +361,12 @@ void setup() {
   Serial.println(v);
 
   // If volt is too low, update display and go back to sleep
-  float lowVoltCutoff = 3.9;
+  float lowVoltCutoff = 3.5;
   if (volt <= lowVoltCutoff) {
     Serial.println("Voltage low, going back to sleep");
     drawLowBatteryWindow();
     ESP.deepSleep(sleepSeconds * 1000000);
-    Serial.println("zzzZZzzz");
+    Serial.println("Sleep failed!");
   }
 
   
