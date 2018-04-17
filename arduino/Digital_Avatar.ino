@@ -307,6 +307,23 @@ void drawStatusWindow(const uint8_t *avatar, String ticket) {
   display.update();
 }
 
+
+void drawLowBatteryWindow() {
+  display.fillScreen(GxEPD_WHITE);
+  display.setTextColor(GxEPD_RED);
+  display.setFont(&FreeMonoBold24pt7b);
+  display.setCursor(3, 70);
+  display.println("  LOW  ");
+  display.setCursor(3, 110);
+  display.println("BATTERY");
+  display.setFont(&FreeSans9pt7b);
+  display.setTextColor(GxEPD_BLACK);
+  display.setCursor(22, 140);
+  display.println("Connect to charger");
+  display.update();
+}
+
+
 bool charging() {
   if (digitalRead(chargePin) == HIGH) {
     return true;
@@ -320,25 +337,40 @@ void setup() {
   // Pin modes
   pinMode(chargePin, INPUT);
   pinMode(battPin, INPUT);
+  pinMode(D0, WAKEUP_PULLUP);
+
+  // variables
+  const int sleepSeconds = 60; // 1800 = 30 minutes
 
   // Start serial
   Serial.begin(115200);
   Serial.println();
-  Serial.println("setup");
+  Serial.println("Setup");
+
+  // Start display
+  display.init();
 
   // Read voltage
-  
   unsigned int raw = 0;
   float volt = 0.0;
   raw = analogRead(A0);
   volt = raw / 1023.0;
   volt = volt * 4.2;
-  String v = String(volt);
+  String volts = " volts";
+  String v = String(volt + volts);
   Serial.println(v);
-  
 
-  display.init();
-  Serial.println("setup done");
+  // If volt is too low, update display and go back to sleep
+  float lowVoltCutoff = 3.9;
+  if (volt <= lowVoltCutoff) {
+    Serial.println("Voltage low, going back to sleep");
+    drawLowBatteryWindow();
+    ESP.deepSleep(sleepSeconds * 1000000);
+    Serial.println("zzzZZzzz");
+  }
+
+  
+  Serial.println("Setup done");
 }
 
 void loop() {
