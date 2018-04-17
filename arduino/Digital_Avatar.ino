@@ -1,3 +1,5 @@
+
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include <GxEPD.h>
 #include <GxGDEW0154Z04/GxGDEW0154Z04.cpp>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
@@ -16,6 +18,7 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
+#include <ArduinoJson.h>
 
 
 GxIO_Class io(SPI, SS, 0, 2);
@@ -481,6 +484,52 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   drawQrCode("SSID: " + ssid, "Password: " + pw, qr_code);
 }
 
+char aws_key[255];
+char aws_secret[255];
+
+bool shouldSaveConfig = false;
+
+//callback notifying us of the need to save config
+void saveConfigCallback () {
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
+}
+
+void setup_aws() {
+  Serial.println("mounting FS...");
+
+   if (SPIFFS.begin()) {
+    Serial.println("mounted file system");
+    if (SPIFFS.exists("/config.json")) {
+      //file exists, reading and loading
+      Serial.println("reading config file");
+      File configFile = SPIFFS.open("/config.json", "r");
+      if (configFile) {
+        Serial.println("opened config file");
+        size_t size = configFile.size();
+        // Allocate a buffer to store contents of the file.
+        std::unique_ptr<char[]> buf(new char[size]);
+
+        configFile.readBytes(buf.get(), size);
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject& json = jsonBuffer.parseObject(buf.get());
+        json.printTo(Serial);
+        if (json.success()) {
+          Serial.println("\nparsed json");
+
+          strcpy(aws_key, json["aws_key"]);
+          strcpy(aws_secret, json["aws_secret"]);
+
+        } else {
+          Serial.println("failed to load json config");
+        }
+      }
+    }
+  } else {
+    Serial.println("failed to mount FS");
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -496,11 +545,46 @@ void setup() {
   pw = String(password);
   qr_code = String("WIFI:S:") + ssid + String(";T:WPA2;P:") + pw + String(";;");
 
+
+  setup_aws();
+
+  // Setup AWS params
+  WiFiManagerParameter custom_aws_key("key", "AWS Key", aws_key, 255);
+  WiFiManagerParameter custom_aws_secret("secret", "AWS Secret", aws_secret, 255);
+
   WiFiManager wifiManager;
   // TODO: allow WiFi reset somehow.
   // wifiManager.resetSettings();
+  wifiManager.addParameter(&custom_aws_key);
+  wifiManager.addParameter(&custom_aws_secret);
+
   wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+
   wifiManager.autoConnect(ssid.c_str(), pw.c_str());
+
+
+  strcpy(aws_key, custom_aws_key.getValue());
+  strcpy(aws_secret, custom_aws_secret.getValue());
+
+  if (shouldSaveConfig) {
+    Serial.println("saving config");
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& json = jsonBuffer.createObject();
+    json["aws_key"] = aws_key;
+    json["aws_secret"] = aws_secret;
+
+    File configFile = SPIFFS.open("/config.json", "w");
+    if (!configFile) {
+      Serial.println("failed to open config file for writing");
+    }
+
+    json.printTo(Serial);
+    json.printTo(configFile);
+    configFile.close();
+    //end save
+  }
+
   drawTest();
 }
 
