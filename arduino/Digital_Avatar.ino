@@ -21,6 +21,10 @@
 #include <ArduinoJson.h>
 
 
+// Define pins
+int chargePin = D1;
+int battPin = A0;
+
 GxIO_Class io(SPI, SS, 0, 2);
 GxEPD_Class display(io);
 
@@ -388,32 +392,6 @@ static const uint8_t PROGMEM southpark[] = {
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0xff, 0xff, 0xff, 0xff, 0xff,
    0x01, 0x00, 0x00, 0x00 };
 
-void drawTest() {
-  display.fillScreen(GxEPD_WHITE);
-  display.setFont(&FreeMonoBold9pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.setCursor(0, 0);
-  display.println();
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold18pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.setFont(&FreeMonoBold24pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  display.println("Test");
-  display.setTextColor(GxEPD_RED);
-  display.println("Test");
-  display.update();
-}
 
 void drawStatusWindow(const uint8_t *avatar, String ticket) {
   display.fillScreen(GxEPD_WHITE);
@@ -447,6 +425,33 @@ void drawStatusWindow(const uint8_t *avatar, String ticket) {
   // Print buffer
   display.update();
 }
+
+
+void drawLowBatteryWindow() {
+  display.fillScreen(GxEPD_WHITE);
+  display.setTextColor(GxEPD_RED);
+  display.setFont(&FreeMonoBold24pt7b);
+  display.setCursor(3, 70);
+  display.println("  LOW  ");
+  display.setCursor(3, 110);
+  display.println("BATTERY");
+  display.setFont(&FreeSans9pt7b);
+  display.setTextColor(GxEPD_BLACK);
+  display.setCursor(22, 140);
+  display.println("Connect to charger");
+  display.update();
+}
+
+
+bool charging() {
+  if (digitalRead(chargePin) == HIGH) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
 
 void drawQrCode(String header1, String header2, String text) {
   QRCode qrcode;
@@ -531,11 +536,22 @@ void setup_aws() {
 }
 
 void setup() {
+  // Pin modes
+  pinMode(chargePin, INPUT);
+  pinMode(battPin, INPUT);
+  pinMode(D0, WAKEUP_PULLUP);
+
+  // variables
+  const int sleepSeconds = 60; // 1800 = 30 minutes
+
+  // Start serial
   Serial.begin(115200);
   Serial.println();
-  Serial.println("setup");
+  Serial.println("Setup");
+
+  // Start display
   display.init();
-  Serial.println("setup done");
+
   randomSeed(RANDOM_REG32);
   long randNumber = random(100, 999);
   Serial.print("random2=");
@@ -585,10 +601,38 @@ void setup() {
     //end save
   }
 
-  drawTest();
+
+  // Read voltage
+  unsigned int raw = 0;
+  float volt = 0.0;
+  raw = analogRead(battPin);
+  volt = raw / 1023.0;
+  volt = volt * 4.2;
+  String volts = " volts";
+  String v = String(volt + volts);
+  Serial.println(v);
+
+  // If volt is too low, update display and go back to sleep
+  float lowVoltCutoff = 3.5;
+  if (volt <= lowVoltCutoff) {
+    Serial.println("Voltage low, going back to sleep");
+    drawLowBatteryWindow();
+    ESP.deepSleep(sleepSeconds * 1000000);
+    Serial.println("Sleep failed!");
+  }
+
+
+  Serial.println("Setup done");
 }
 
 void loop() {
+  // Are we charging
+  if (charging() == true) {
+    Serial.println("Charging");
+  } else {
+    Serial.println("Not charging");
+  }
+
   String grumpyTicket = "DEVOPS-123";
   drawStatusWindow(grumpy, grumpyTicket);
   delay(5000);
