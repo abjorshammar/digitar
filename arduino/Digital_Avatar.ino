@@ -586,7 +586,7 @@ void setup() {
   ssid = String("Digitar") + String(randNumber);
   long password = random(10000000, 99999999);
   pw = String(password);
-  qr_code = String("WIFI:S:") + ssid + String(";T:WPA2;P:") + pw + String(";;");
+  qr_code = String("WIFI:S:") + ssid + String(";T:WPA;P:") + pw + String(";;");
 
   // Setup AWS
   setup_aws();
