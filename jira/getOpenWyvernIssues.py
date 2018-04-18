@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
 import httplib, json, base64, sys
-#12401 Wyvern Board
-#12303 Wyvern Bug Dashboard
+
 SP="%20"
 TEAM = '"team'+SP+'wyvern"'
 URL_ROOT = '/rest/api/latest/search?jql='+\
@@ -16,9 +15,10 @@ URL_ROOT = '/rest/api/latest/search?jql='+\
            +SP+'and'+SP+'status!=candidate'\
            +SP+'and'+SP+'status!=verified'
            #+SP+'and'+SP+'type=bug'
-
-USERNAME = "bugzillarestapi"
-PASSWORD = '''-'!3cT}CAz3('''
+usernamefile = open('USERNAME', 'r')
+USERNAME = usernamefile.read()
+passwordfile = open('PASSWORD', 'r')
+PASSWORD = passwordfile.read()
 headers = {'Authorization': 'Basic ' + base64.b64encode(USERNAME+':'+PASSWORD)}
 headers.update({'Content-Type': 'application/json'})
 headers.update({'Accept': '*/*'})
@@ -54,14 +54,16 @@ print awsShadow
 
 # Send it to the aws lambda API:
 import urllib2
-AWSLAMBDAAPI = 'https://5omnzjyeva.execute-api.eu-west-1.amazonaws.com/prod/digitar/hellopub'
-
-read = urllib2.urlopen(AWSLAMBDAAPI) # Works for reading
-print read
-read.close
+#AWSLAMBDAAPIPUB = 'https://5omnzjyeva.execute-api.eu-west-1.amazonaws.com/prod/digitar/hellopub'
+AWSLAMBDAAPIPUT = 'https://5omnzjyeva.execute-api.eu-west-1.amazonaws.com/prod/digitar/put'
+#read = urllib2.urlopen(AWSLAMBDAAPI) # Works for reading
+#print read
+#read.close
 
 # Now write:
-req  = urllib2.Request(AWSLAMBDAAPI, json.dumps(awsShadow), {'Content-Type': 'application/json'})
+req  = urllib2.Request(AWSLAMBDAAPIPUT, json.dumps(awsShadow), {'Content-Type': 'application/json'})
 f = urllib2.urlopen(req)
-response = f.read()
+jsonresponse = f.read()
+myresponse = json.loads(jsonresponse)
+print myresponse['message']
 f.close()
