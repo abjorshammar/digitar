@@ -452,6 +452,26 @@ bool charging() {
   }
 }
 
+void checkBattery() {
+  unsigned int raw = 0;
+  float volt = 0.0;
+  raw = analogRead(battPin);
+  volt = raw / 1023.0;
+  volt = volt * 4.2;
+  String volts = " volts";
+  String v = String(volt + volts);
+  Serial.println(v);
+
+  // If volt is too low, update display and go back to sleep for 60 minutes
+  float lowVoltCutoff = 4.0;
+  if (volt <= lowVoltCutoff) {
+    Serial.println("Voltage low, going back to sleep");
+    drawLowBatteryWindow();
+    ESP.deepSleep(3600 * 1000000);
+    Serial.println("Sleep failed!");
+  }
+}
+
 
 void drawQrCode(String header1, String header2, String text) {
   QRCode qrcode;
@@ -536,22 +556,29 @@ void setup_aws() {
 }
 
 void setup() {
-  // Pin modes
-  pinMode(chargePin, INPUT);
-  pinMode(battPin, INPUT);
-  pinMode(D0, WAKEUP_PULLUP);
-
-  // variables
-  const int sleepSeconds = 60; // 1800 = 30 minutes
-
   // Start serial
   Serial.begin(115200);
   Serial.println();
   Serial.println("Setup");
 
+  // Pin modes
+  pinMode(chargePin, INPUT);
+  pinMode(battPin, INPUT);
+  pinMode(D0, WAKEUP_PULLUP);
+
   // Start display
   display.init();
 
+  // Check for low battery and charging status
+  if (charging() == true) {
+    Serial.println("Charging");
+  } else {
+    Serial.println("Not charging");
+    checkBattery();
+  }
+
+  // variables
+  const int sleepSeconds = 60; // 1800 = 30 minutes
   randomSeed(RANDOM_REG32);
   long randNumber = random(100, 999);
   Serial.print("random2=");
@@ -561,28 +588,27 @@ void setup() {
   pw = String(password);
   qr_code = String("WIFI:S:") + ssid + String(";T:WPA2;P:") + pw + String(";;");
 
-
+  // Setup AWS
   setup_aws();
 
-  // Setup AWS params
+  // Setup AWS params in wifimanager
   WiFiManagerParameter custom_aws_key("key", "AWS Key", aws_key, 255);
   WiFiManagerParameter custom_aws_secret("secret", "AWS Secret", aws_secret, 255);
 
+  // Setup wifimanager
   WiFiManager wifiManager;
   // TODO: allow WiFi reset somehow.
   // wifiManager.resetSettings();
   wifiManager.addParameter(&custom_aws_key);
   wifiManager.addParameter(&custom_aws_secret);
-
   wifiManager.setAPCallback(configModeCallback);
   wifiManager.setSaveConfigCallback(saveConfigCallback);
-
   wifiManager.autoConnect(ssid.c_str(), pw.c_str());
-
 
   strcpy(aws_key, custom_aws_key.getValue());
   strcpy(aws_secret, custom_aws_secret.getValue());
 
+  // Save entered config
   if (shouldSaveConfig) {
     Serial.println("saving config");
     DynamicJsonBuffer jsonBuffer;
@@ -601,38 +627,10 @@ void setup() {
     //end save
   }
 
-
-  // Read voltage
-  unsigned int raw = 0;
-  float volt = 0.0;
-  raw = analogRead(battPin);
-  volt = raw / 1023.0;
-  volt = volt * 4.2;
-  String volts = " volts";
-  String v = String(volt + volts);
-  Serial.println(v);
-
-  // If volt is too low, update display and go back to sleep
-  float lowVoltCutoff = 3.5;
-  if (volt <= lowVoltCutoff) {
-    Serial.println("Voltage low, going back to sleep");
-    drawLowBatteryWindow();
-    ESP.deepSleep(sleepSeconds * 1000000);
-    Serial.println("Sleep failed!");
-  }
-
-
   Serial.println("Setup done");
 }
 
 void loop() {
-  // Are we charging
-  if (charging() == true) {
-    Serial.println("Charging");
-  } else {
-    Serial.println("Not charging");
-  }
-
   String grumpyTicket = "DEVOPS-123";
   drawStatusWindow(grumpy, grumpyTicket);
   delay(5000);
