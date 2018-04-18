@@ -25,3 +25,11 @@ functions:
           method: get
           cors: true
           private: false
+  put:
+    handler: handler.put
+    events:
+      - http:
+          path: digitar/put
+          method: post
+          cors: true
+          private: false
