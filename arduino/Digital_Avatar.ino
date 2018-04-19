@@ -20,6 +20,8 @@
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 
+#include <WiFiClientSecure.h>
+
 
 // Define pins
 int chargePin = D1;
@@ -28,6 +30,8 @@ int battery = 5; // 0 = empty, 2 = 25%, 5 = 50%, 7 = 75%, 10 = 100%, 100 = charg
 
 GxIO_Class io(SPI, SS, 0, 2);
 GxEPD_Class display(io);
+
+WiFiClientSecure client;
 
 static const uint8_t PROGMEM wifi_inv [] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -659,9 +663,9 @@ void setup() {
   Serial.print("random2=");
   Serial.print(randNumber);
   ssid = String("Digitar") + String(randNumber);
-  long password = random(1000000, 9999999);
+  long password = random(10000000, 99999999);
   pw = String(password);
-  qr_code = String("WIFI:S:") + ssid + String(";T:WPA2;P:") + pw + String(";;");
+  qr_code = String("WIFI:S:") + ssid + String(";T:WPA;P:") + pw + String(";;");
 
   // Check for low battery and charging status
   if (charging() == true) {
@@ -711,7 +715,90 @@ void setup() {
     //end save
   }
 
+  //fetch();
   Serial.println("Setup done");
+}
+
+
+
+String fetch() {
+  String headers = "";
+  String body = "";
+  bool finishedHeaders = false;
+  bool currentLineIsBlank = true;
+  bool gotResponse = false;
+  long now;
+
+  char host[] = "xxxxxxxx.execute-api.eu-west-1.amazonaws.com"; // Replace xxxx with correct end-point
+
+  if (client.connect(host, 443))
+  {
+    Serial.println("connected");
+
+    String URL = "/prod/digitar/hellopub";
+
+    Serial.println(URL);
+
+    client.println("GET " + URL + " HTTP/1.1");
+    client.print("Host: ");
+    client.println(host);
+    client.println("User-Agent: arduino/1.0");
+    client.println("Content-Type: application/json");
+
+    client.println("");
+
+    now = millis();
+
+    while (!client.available()) {
+      delay(100);
+    }
+
+    Serial.println("Client connected");
+
+    while (client.available())
+    {
+
+      char c = client.read();
+
+          Serial.println(String("Char: ") + c);
+
+
+      if (finishedHeaders)
+      {
+        body = body + c;
+      }
+      else
+      {
+        if (currentLineIsBlank && c == '\n')
+        {
+          finishedHeaders = true;
+        }
+        else
+        {
+          headers = headers + c;
+        }
+      }
+
+      if (c == '\n')
+      {
+        currentLineIsBlank = true;
+      }
+      else if (c != '\r')
+      {
+        currentLineIsBlank = false;
+      }
+
+      gotResponse = true;
+    }
+    if (gotResponse) {
+      Serial.println("Body: " + body);
+      return body;
+    }
+  }
+
+  Serial.println("No HTTP resp");
+
+  return body;
 }
 
 void loop() {
